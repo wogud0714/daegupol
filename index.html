@@ -1216,12 +1216,69 @@ function renderHelpServices(){
 }
 
 
-function showScreen(id){
+let currentScreenId="languageScreen";
+let isHandlingPopState=false;
+
+function renderScreen(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
+  const target=document.getElementById(id);
+  if(!target) return;
+  target.classList.add("active");
+  currentScreenId=id;
   if(id==="helpScreen") renderHelpServices();
   window.scrollTo({top:0,behavior:"smooth"});
 }
+
+function showScreen(id){
+  // 앱 내부 화면에서 HOME 버튼을 눌렀을 때는
+  // 브라우저 히스토리도 한 단계 뒤로 보내 중복 HOME 기록을 만들지 않습니다.
+  if(id==="homeScreen" &&
+     currentScreenId!=="homeScreen" &&
+     currentScreenId!=="languageScreen" &&
+     history.state &&
+     history.state.appScreen===currentScreenId){
+    history.back();
+    return;
+  }
+
+  renderScreen(id);
+
+  if(isHandlingPopState) return;
+
+  // 언어 선택 후 홈으로 들어갈 때 현재 앱 기록을 HOME으로 교체합니다.
+  if(id==="homeScreen"){
+    history.replaceState({appScreen:"homeScreen"},"",location.href);
+    return;
+  }
+
+  // 언어 선택 화면은 최초 진입 상태로 유지합니다.
+  if(id==="languageScreen"){
+    history.replaceState({appScreen:"languageScreen"},"",location.href);
+    return;
+  }
+
+  // 체험/가이드/도움말 등 내부 화면을 열 때 히스토리를 하나 추가합니다.
+  // 스마트폰의 시스템 '뒤로가기'를 누르면 바로 HOME으로 돌아갑니다.
+  history.pushState({appScreen:id},"",location.href);
+}
+
+window.addEventListener("popstate",function(e){
+  isHandlingPopState=true;
+
+  if(e.state && e.state.appScreen){
+    renderScreen(e.state.appScreen);
+  }else{
+    // 앱 내부 화면에서 시스템 뒤로가기가 발생했는데 상태가 없으면
+    // 외부 페이지로 나가지 않고 HOME을 보여줍니다.
+    renderScreen("homeScreen");
+    history.replaceState({appScreen:"homeScreen"},"",location.href);
+  }
+
+  isHandlingPopState=false;
+});
+
+// 첫 로딩 시 현재 앱 페이지를 히스토리에 등록합니다.
+history.replaceState({appScreen:"languageScreen"},"",location.href);
 
 function changeLanguage(lang){
   currentLanguage=lang;
